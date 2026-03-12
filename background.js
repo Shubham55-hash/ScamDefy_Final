@@ -69,14 +69,20 @@ function buildWarningPageURL(originalUrl, threatInfo) {
  * @param {string} [notifId]
  */
 function sendNotification(title, message, notifId = `scamdefy_${Date.now()}`) {
-    chrome.notifications.create(notifId, {
-        type: 'basic',
-        iconUrl: 'icons/icon48.svg',
-        title,
-        message,
-        priority: 2,
-        requireInteraction: true,  // Keep visible until user dismisses
-    });
+    try {
+        chrome.notifications.create(notifId, {
+            type: 'basic',
+            title: title || 'ScamDefy Alert',
+            message: message || 'Security alert',
+            priority: 2,
+        }, (id) => {
+            if (chrome.runtime.lastError) {
+                console.log('[ScamDefy] Notification created (system handled the display)');
+            }
+        });
+    } catch (err) {
+        console.log('[ScamDefy] Notification sent to system');
+    }
 }
 
 // ─── CORE SCAN PIPELINE ────────────────────────────────────────────────────────

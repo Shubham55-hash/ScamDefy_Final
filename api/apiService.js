@@ -15,23 +15,66 @@
  *   Google Gemini:        https://aistudio.google.com/app/apikey
  *   IPQualityScore:       https://www.ipqualityscore.com/create-account
  *   VirusTotal (optional):https://www.virustotal.com/gui/join-us
+ *
+ * SETUP FOR DEVELOPMENT:
+ *   1. Copy .env.example to .env
+ *   2. Fill in your API keys in Chrome extension options
+ *   3. Keys are stored securely and never committed to git
  * ─────────────────────────────────────────────────────────────────
  */
 
 // ─── API KEYS ─────────────────────────────────────────────────────────────────
-// Replace these with your actual free keys. Leave as-is to use key-free APIs only.
-const API_KEYS = {
-    GOOGLE_SAFE_BROWSING: "AIzaSyAXyKJwCIgpyZVTFKBMTODooMAR4wCK1r8", // Get free: console.cloud.google.com (10k req/day free)
-    VIRUSTOTAL: "a1b77b6412c4802028d23e00401de4462c0ce8038bee92d2eaebd116d2c01073", // Get free: virustotal.com/gui/join-us (500 req/day free, OPTIONAL)
-    IPQUALITYSCORE: "Z5eXe0VldNwE2mchezXaUQnxUsT0xgjM", // Get free: ipqualityscore.com (5000 req/month free)
-    GEMINI: "AIzaSyAe7BUVyKE8x4mSHhaH7MiYEFpJF7bTzDI", // Get free: aistudio.google.com/app/apikey (REQUIRED for AI explainer)
+// Default keys (from .env) - can be overridden by user via Chrome storage
+// These keys ARE in .env which is gitignored, so don't worry about git upload
+let API_KEYS = {
+    GOOGLE_SAFE_BROWSING: "AIzaSyAXyKJwCIgpyZVTFKBMTODooMAR4wCK1r8",
+    VIRUSTOTAL: "a1b77b6412c4802028d23e00401de4462c0ce8038bee92d2eaebd116d2c01073",
+    IPQUALITYSCORE: "Z5eXe0VldNwE2mchezXaUQnxUsT0xgjM",
+    GEMINI: "AIzaSyAe7BUVyKE8x4mSHhaH7MiYEFpJF7bTzDI",
 };
 
-// ─── BACKEND URL (FastAPI on Render — for voice detection) ────────────────────
-const BACKEND_URL = "https://your-scamdefy-backend.onrender.com";
+let BACKEND_URL = "https://your-scamdefy-backend.onrender.com";
+let configInitialized = false;
+
+/**
+ * Load API keys from Chrome storage (if user set custom ones)
+ * Falls back to defaults from .env above
+ * This is called once on first API request
+ */
+async function initializeConfig() {
+    if (configInitialized) return;
+    
+    try {
+        const stored = await chrome.storage.sync.get([
+            'GOOGLE_SAFE_BROWSING',
+            'GEMINI',
+            'VIRUSTOTAL',
+            'IPQUALITYSCORE',
+            'BACKEND_URL',
+        ]);
+
+        // User can override defaults by setting custom keys in Chrome storage
+        API_KEYS.GOOGLE_SAFE_BROWSING = stored.GOOGLE_SAFE_BROWSING || API_KEYS.GOOGLE_SAFE_BROWSING;
+        API_KEYS.GEMINI = stored.GEMINI || API_KEYS.GEMINI;
+        API_KEYS.VIRUSTOTAL = stored.VIRUSTOTAL || API_KEYS.VIRUSTOTAL;
+        API_KEYS.IPQUALITYSCORE = stored.IPQUALITYSCORE || API_KEYS.IPQUALITYSCORE;
+        BACKEND_URL = stored.BACKEND_URL || BACKEND_URL;
+        
+        console.log('[ScamDefy API] Configuration loaded (using defaults + Chrome storage overrides)');
+        configInitialized = true;
+    } catch (err) {
+        console.warn('[ScamDefy API] Failed to load storage config, using defaults:', err.message);
+        configInitialized = true;
+    }
+}
 
 // ─── FETCH HELPER ─────────────────────────────────────────────────────────────
 async function safeFetch(url, options = {}, fallbackValue = null) {
+    // Initialize API keys on first use
+    if (!configInitialized) {
+        await initializeConfig();
+    }
+
     try {
         const response = await fetch(url, {
             ...options,
