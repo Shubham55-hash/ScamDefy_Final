@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ScamDefy — Threat Detected</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="warning-page-body">
+  <div class="warning-page">
+    <div class="warning-card" id="warningCard">
+
+      <!-- Shield Icon -->
+      <div class="warning-shield" id="warningShield">⚠️</div>
+
+      <!-- Risk Level Badge -->
+      <div style="text-align: center;">
+        <span class="warning-level-badge" id="levelBadge">
+          <span id="levelDot">●</span>
+          <span id="levelText">HIGH RISK</span>
+        </span>
+      </div>
+
+      <!-- Title -->
+      <h1 class="warning-title">Threat Blocked by ScamDefy</h1>
+      <p class="warning-scam-type" id="scamTypeText">Phishing Website Detected</p>
+
+      <!-- Blocked URL -->
+      <div class="warning-url-box">
+        <span class="warning-url-label">Blocked URL</span>
+        <span class="warning-url-value" id="blockedUrl">Loading...</span>
+      </div>
+
+      <!-- AI Explanation -->
+      <div class="explanation-box">
+        <div class="explanation-label">
+          <span>🤖</span>
+          <span>AI Scam Analysis</span>
+          <span class="ai-badge" id="aiBadge">GEMINI AI</span>
+        </div>
+        <p class="explanation-text" id="explanationText">
+          Analyzing threat... Please wait.
+        </p>
+      </div>
+
+      <!-- Risk Score Bar -->
+      <div class="risk-score-section">
+        <div class="risk-score-header">
+          <span class="risk-score-label">Risk Score</span>
+          <span class="risk-score-value" id="riskScoreValue">–/100</span>
+        </div>
+        <div class="risk-bar-track">
+          <div class="risk-bar-fill" id="riskBarFill" style="width: 0%"></div>
+        </div>
+      </div>
+
+      <!-- Detected Signals -->
+      <div class="signals-section" id="signalsSection" style="display: none;">
+        <div class="signals-title">🔍 Detected Threat Signals</div>
+        <ul class="signals-list" id="signalsList"></ul>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="warning-actions">
+        <button class="btn btn-primary" id="btnGoBack">
+          🛡️ Take Me to Safety
+        </button>
+        <button class="btn btn-secondary" id="btnProceed">
+          ⚠️ Proceed Anyway
+        </button>
+      </div>
+
+      <!-- ScamDefy Branding -->
+      <div class="warning-brand">
+        <span class="warning-brand-logo">🛡️</span>
+        <span class="warning-brand-name">Protected by ScamDefy AI</span>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="warning.js"></script>
+</body>
+</html>

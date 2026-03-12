@@ -1,0 +1,68 @@
+{
+    "manifest_version": 3,
+    "name": "ScamDefy — AI Scam Protection",
+    "short_name": "ScamDefy",
+    "version": "1.0.0",
+    "description": "Real-time AI protection against phishing websites, dangerous URLs, fake login forms, and voice deepfakes.",
+    "author": "ScamDefy Team",
+    "icons": {
+        "16": "icons/icon16.svg",
+        "32": "icons/icon32.svg",
+        "48": "icons/icon48.svg",
+        "128": "icons/icon128.svg"
+    },
+    "action": {
+        "default_popup": "ui/popup.html",
+        "default_icon": {
+            "16": "icons/icon16.svg",
+            "32": "icons/icon32.svg",
+            "48": "icons/icon48.svg",
+            "128": "icons/icon128.svg"
+        },
+        "default_title": "ScamDefy — AI Scam Protection"
+    },
+    "background": {
+        "service_worker": "background.js",
+        "type": "module"
+    },
+    "content_scripts": [
+        {
+            "matches": [
+                "<all_urls>"
+            ],
+            "js": [
+                "content/content.js"
+            ],
+            "run_at": "document_idle",
+            "all_frames": false
+        }
+    ],
+    "permissions": [
+        "tabs",
+        "activeTab",
+        "storage",
+        "notifications",
+        "webRequest",
+        "scripting",
+        "alarms",
+        "identity"
+    ],
+    "host_permissions": [
+        "<all_urls>"
+    ],
+    "web_accessible_resources": [
+        {
+            "resources": [
+                "ui/warning.html",
+                "ui/style.css",
+                "icons/*"
+            ],
+            "matches": [
+                "<all_urls>"
+            ]
+        }
+    ],
+    "content_security_policy": {
+        "extension_pages": "script-src 'self'; object-src 'self'"
+    }
+}
