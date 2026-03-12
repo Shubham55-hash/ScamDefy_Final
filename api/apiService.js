@@ -24,13 +24,13 @@
  */
 
 // ─── API KEYS ─────────────────────────────────────────────────────────────────
-// Default keys (from .env) - can be overridden by user via Chrome storage
-// These keys ARE in .env which is gitignored, so don't worry about git upload
+// Default keys (loaded from .env at development time, or user configures via Chrome storage)
+// IMPORTANT: These should be empty by default. Users configure via options page.
 let API_KEYS = {
-    GOOGLE_SAFE_BROWSING: "AIzaSyAXyKJwCIgpyZVTFKBMTODooMAR4wCK1r8",
-    VIRUSTOTAL: "a1b77b6412c4802028d23e00401de4462c0ce8038bee92d2eaebd116d2c01073",
-    IPQUALITYSCORE: "Z5eXe0VldNwE2mchezXaUQnxUsT0xgjM",
-    GEMINI: "AIzaSyAe7BUVyKE8x4mSHhaH7MiYEFpJF7bTzDI",
+    GOOGLE_SAFE_BROWSING: "",
+    VIRUSTOTAL: "",
+    IPQUALITYSCORE: "",
+    GEMINI: "",
 };
 
 let BACKEND_URL = "https://your-scamdefy-backend.onrender.com";
@@ -38,7 +38,7 @@ let configInitialized = false;
 
 /**
  * Load API keys from Chrome storage (if user set custom ones)
- * Falls back to defaults from .env above
+ * Falls back to defaults (empty = optional features disabled)
  * This is called once on first API request
  */
 async function initializeConfig() {
