@@ -5,11 +5,29 @@
  * - Timestamps all entries
  * - Provides data to the popup dashboard
  * - Firebase Firestore sync (optional — requires Firebase config)
+ *
+ * Uses indexedStorage.js for O(1) lookups by id, hostname, riskLevel, and date
+ * instead of O(n) linear scans over the full threat array.
  */
+
+import {
+    getAllThreats as _getAllThreats,
+    insertThreat,
+    getThreatById,
+    getThreatsByHostname,
+    getThreatsByRiskLevel,
+    getThreatsForDate,
+    getTodayThreats as _getTodayThreats,
+    getThreatsByDateRange,
+    getRecentThreats as _getRecentThreats,
+    updateThreat,
+    isHostnameFlagged,
+    countByRiskLevel,
+    clearAll as clearIndexes,
+} from './indexedStorage.js';
 
 // ─── CONSTANTS ─────────────────────────────────────────────────────────────────
 const STORAGE_KEY = 'scamdefy_threat_log';
-const MAX_LOCAL_ENTRIES = 200; // Keep only the most recent 200 entries
 
 // ─── FIREBASE CONFIG (Optional — replace with your config) ────────────────────
 // To enable Firebase, replace these values and uncomment the Firebase import below.
@@ -24,29 +42,15 @@ const FIREBASE_CONFIG = {
 // Note: Firebase SDK must be added as a separate script for MV3 compliance.
 // For now, all threat data is stored in chrome.storage.local.
 
-// ─── STORAGE HELPERS ───────────────────────────────────────────────────────────
+// ─── STORAGE HELPERS (delegated to indexedStorage.js) ─────────────────────────
 
 /**
- * Get all stored threat entries from Chrome storage.
+ * Get all stored threat entries from indexed storage.
+ * Array is sorted newest-first.
  * @returns {Promise<Array>}
  */
 export async function getAllThreats() {
-    return new Promise((resolve) => {
-        chrome.storage.local.get([STORAGE_KEY], (result) => {
-            resolve(result[STORAGE_KEY] || []);
-        });
-    });
-}
-
-/**
- * Save the threat array back to Chrome storage.
- * @param {Array} threats
- * @returns {Promise<void>}
- */
-async function saveThreats(threats) {
-    return new Promise((resolve) => {
-        chrome.storage.local.set({ [STORAGE_KEY]: threats }, resolve);
-    });
+    return _getAllThreats();
 }
 
 // ─── LOG A THREAT ──────────────────────────────────────────────────────────────
@@ -66,8 +70,6 @@ async function saveThreats(threats) {
  * @returns {Promise<string>} — the entry ID
  */
 export async function logThreat(threatData) {
-    const threats = await getAllThreats();
-
     const entry = {
         id: `sd_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
         timestamp: new Date().toISOString(),
@@ -84,15 +86,8 @@ export async function logThreat(threatData) {
         blocked: !threatData.userProceeded,
     };
 
-    // Prepend (most recent first)
-    threats.unshift(entry);
-
-    // Trim to max entries
-    if (threats.length > MAX_LOCAL_ENTRIES) {
-        threats.splice(MAX_LOCAL_ENTRIES);
-    }
-
-    await saveThreats(threats);
+    // Insert into indexed storage (handles prepend, cap enforcement, and persist)
+    await insertThreat(entry);
     await incrementBlockedCount(entry.blocked);
 
     // Optional: sync to Firebase
@@ -135,52 +130,55 @@ export async function getStats() {
 
 /**
  * Get threats detected today only.
+ * Uses the date index for O(1) lookup instead of O(n) filter.
  * @returns {Promise<Array>}
  */
 export async function getTodayThreats() {
-    const threats = await getAllThreats();
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-
-    return threats.filter(t => {
-        const tDate = new Date(t.timestamp);
-        return tDate >= todayStart;
-    });
+    return _getTodayThreats();
 }
 
 /**
  * Get the N most recent threats.
+ * O(1) slice on the pre-sorted array.
  * @param {number} n
  * @returns {Promise<Array>}
  */
 export async function getRecentThreats(n = 10) {
-    const threats = await getAllThreats();
-    return threats.slice(0, n);
+    return _getRecentThreats(n);
 }
 
 /**
  * Mark a threat entry as "user proceeded despite warning".
+ * Uses the id index for O(1) lookup instead of O(n) Array.find().
  * @param {string} entryId
  */
 export async function markUserProceeded(entryId) {
-    const threats = await getAllThreats();
-    const entry = threats.find(t => t.id === entryId);
-    if (entry) {
-        entry.userProceeded = true;
-        entry.blocked = false;
-        await saveThreats(threats);
-    }
+    await updateThreat(entryId, { userProceeded: true, blocked: false });
 }
 
 /**
- * Clear all threat history from local storage.
+ * Clear all threat history from local storage and reset indexes.
  * @returns {Promise<void>}
  */
 export async function clearHistory() {
+    await clearIndexes();
     return new Promise((resolve) => {
         chrome.storage.local.remove([STORAGE_KEY, STATS_KEY], resolve);
     });
 }
+
+// ─── INDEXED QUERY EXPORTS ──────────────────────────────────────────────────
+// Re-export indexed query functions for use by other modules.
+
+export {
+    getThreatById,
+    getThreatsByHostname,
+    getThreatsByRiskLevel,
+    getThreatsForDate,
+    getThreatsByDateRange,
+    isHostnameFlagged,
+    countByRiskLevel,
+};
 
 // ─── FIREBASE SYNC (Optional) ──────────────────────────────────────────────────
 /**
