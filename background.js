@@ -18,8 +18,9 @@ import { logThreat } from './utils/logger.js';
 
 // ─── STATE ─────────────────────────────────────────────────────────────────────
 // Track recently scanned URLs to avoid re-scanning on every minor navigation
-const recentlyScanned = new Map(); // url -> {result, timestamp}
-const SCAN_CACHE_MS = 30 * 1000; // 30 seconds de-duplication
+const recentlyScanned = new Map();     // url -> {result, timestamp}
+const hostnameCache = new Map();       // hostname -> Set<url> (index for hostname-based lookups)
+const SCAN_CACHE_MS = 30 * 1000;       // 30 seconds de-duplication
 
 // URLs to skip scanning (extension pages, local pages, etc.)
 const SKIP_PATTERNS = [
@@ -179,13 +180,35 @@ async function runFullScan(url, contentSignals = {}) {
             riskLevel: riskResult.riskLevel,
         };
 
-        // Cache result
+        // Cache result and update hostname index
         recentlyScanned.set(url, { result: fullResult, timestamp: Date.now() });
+        if (hostname) {
+            if (!hostnameCache.has(hostname)) hostnameCache.set(hostname, new Set());
+            hostnameCache.get(hostname).add(url);
+        }
 
-        // Evict old entries from cache
+        // Evict oldest entry from cache when over capacity
         if (recentlyScanned.size > 50) {
-            const oldest = [...recentlyScanned.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp)[0];
-            recentlyScanned.delete(oldest[0]);
+            let oldestUrl = null;
+            let oldestTs = Infinity;
+            for (const [cachedUrl, entry] of recentlyScanned) {
+                if (entry.timestamp < oldestTs) {
+                    oldestTs = entry.timestamp;
+                    oldestUrl = cachedUrl;
+                }
+            }
+            if (oldestUrl) {
+                const evicted = recentlyScanned.get(oldestUrl);
+                recentlyScanned.delete(oldestUrl);
+                // Clean up hostname index for evicted URL
+                const evictedHost = evicted.result?.hostname;
+                if (evictedHost && hostnameCache.has(evictedHost)) {
+                    hostnameCache.get(evictedHost).delete(oldestUrl);
+                    if (hostnameCache.get(evictedHost).size === 0) {
+                        hostnameCache.delete(evictedHost);
+                    }
+                }
+            }
         }
 
         return fullResult;
@@ -319,6 +342,14 @@ chrome.alarms.onAlarm.addListener((alarm) => {
         for (const [url, entry] of recentlyScanned.entries()) {
             if (now - entry.timestamp > SCAN_CACHE_MS * 2) {
                 recentlyScanned.delete(url);
+                // Clean up hostname index for expired URL
+                const expiredHost = entry.result?.hostname;
+                if (expiredHost && hostnameCache.has(expiredHost)) {
+                    hostnameCache.get(expiredHost).delete(url);
+                    if (hostnameCache.get(expiredHost).size === 0) {
+                        hostnameCache.delete(expiredHost);
+                    }
+                }
             }
         }
     }
